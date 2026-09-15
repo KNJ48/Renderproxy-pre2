@@ -77,10 +77,21 @@ http.createServer(async (req, res) => {
 
     delete headers.host;
 
-    // ====================================================
-    // 実験2：
-    // Refererは削除せず、そのままターゲットへ送る
-    // ====================================================
+    // ------------------------------------------------
+    // 実験3：
+    // リクエスト内容をログに記録するだけ
+    // 通信内容自体は変更しない
+    // ------------------------------------------------
+
+    console.log("");
+    console.log("========================================");
+    console.log("🔍 EXPERIMENT 3");
+    console.log("========================================");
+    console.log("Target URL:", targetUrl);
+    console.log("");
+    console.log("Forwarded request headers:");
+    console.log(JSON.stringify(headers, null, 2));
+    console.log("========================================");
 
     // HTMLを加工できるよう、圧縮されていない状態で受け取る
     headers["accept-encoding"] = "identity";
@@ -88,7 +99,21 @@ http.createServer(async (req, res) => {
     client.get(targetUrl, { headers }, (targetRes) => {
 
       // ------------------------------------------------
-      // 4. レスポンスヘッダーを加工
+      // 4. ターゲットからのレスポンスをログに記録
+      // ------------------------------------------------
+
+      console.log("");
+      console.log("========================================");
+      console.log("📥 TARGET RESPONSE");
+      console.log("========================================");
+      console.log("Status:", targetRes.statusCode);
+      console.log("");
+      console.log("Response headers:");
+      console.log(JSON.stringify(targetRes.headers, null, 2));
+      console.log("========================================");
+
+      // ------------------------------------------------
+      // 5. レスポンスヘッダーを加工
       // ------------------------------------------------
 
       const responseHeaders = { ...targetRes.headers };
@@ -104,7 +129,7 @@ http.createServer(async (req, res) => {
       const contentType = responseHeaders["content-type"] || "";
 
       // ------------------------------------------------
-      // 5. HTML以外は今まで通りそのまま転送
+      // 6. HTML以外は今まで通りそのまま転送
       // ------------------------------------------------
 
       if (!contentType.toLowerCase().includes("text/html")) {
@@ -116,7 +141,7 @@ http.createServer(async (req, res) => {
       }
 
       // ------------------------------------------------
-      // 6. HTMLだけ加工
+      // 7. HTMLだけ加工
       // ------------------------------------------------
 
       const chunks = [];
@@ -192,13 +217,17 @@ http.createServer(async (req, res) => {
       });
 
       targetRes.on("error", () => {
+        console.error("❌ Target response error");
+
         if (!res.headersSent) {
           res.writeHead(500);
         }
 
         res.end("ターゲットとの通信に失敗しました。");
       });
-    }).on("error", () => {
+    }).on("error", (err) => {
+      console.error("❌ Target request error:", err);
+
       if (!res.headersSent) {
         res.writeHead(500);
       }
@@ -207,7 +236,7 @@ http.createServer(async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
+    console.error("❌ Proxy error:", err);
 
     res.writeHead(500);
     res.end("エラーが発生しました。");
